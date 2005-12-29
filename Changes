@@ -1,0 +1,5 @@
+Revision history for Perl extension IO::Multiplex::KQueue.
+
+0.01  Sun Dec 25 2005
+        - first release. small modification to IO::Multiplex 1.08.
+
