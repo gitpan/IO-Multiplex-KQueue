@@ -61,7 +61,7 @@ use Fcntl;
 use Carp qw(carp);
 use IO::KQueue;
 
-$VERSION = '0.01';
+$VERSION = '0.02';
 
 BEGIN {
     eval {
@@ -112,7 +112,7 @@ sub add
     $self->{_handles}{"$fh"} = $fh;
     #fd_set($self->{_readers}, $fh, 1);
     $self->EV_SET($fh, EVFILT_READ, EV_ADD, 0, 5, [$fh, EVFILT_READ]);
-    tie *$fh, "IO::Multiplex::Handle", $self, $fh;
+    tie *$fh, "IO::Multiplex::KQueue::Handle", $self, $fh;
     return $fh;
 }
 
@@ -255,15 +255,10 @@ sub loop
             $timeout = $self->{_timers}[0][1] - time;
         }
 
-	#my @results = $self->{_kq}->kevent($timeout);
-	# XXX:
-	@results = $timeout ? $self->{_kq}->kevent($timeout) :
-	                      $self->{_kq}->kevent();
+	@results = $self->{_kq}->kevent($timeout);
 
-	print "do kevent: ", join(',', @results), " ($!, $timeout)\n";
         unless(@results) {
             if ($! == EINTR || $! == EAGAIN) {
-		print "here\n";
                 next;
 	    } elsif( @{$self->{_timers}} ){
 		$self->_checkTimeouts();
@@ -273,9 +268,6 @@ sub loop
 		next;
             }
         }
-
-	# XXX: what's $heartbeat?
-        #&{ $heartbeat } ($rdready, $wrready) if $heartbeat;
 
 	foreach my $kevent (@results) {
 	    my($fh, $action) = @{$kevent->[KQ_UDATA]};
@@ -569,7 +561,7 @@ sub EV_SET
 
 # We tie handles into this package to handle write buffering.
 
-package IO::Multiplex::Handle;
+package IO::Multiplex::KQueue::Handle;
 
 use strict;
 use Tie::Handle;
